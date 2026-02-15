@@ -131,12 +131,71 @@
   display: block;
 }
 
+/* ── Charts Row ─────────────────────────── */
+.chartsRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
 /* ── Chart Card ──────────────────────────── */
 .chartCard {
   background-color: #111827;
   border: 1px solid #1e293b;
   border-radius: 12px;
   padding: 24px;
+}
+
+/* ── Heatmap Grid ───────────────────────── */
+.heatmapContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.heatmapGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+  gap: 4px;
+}
+
+.heatmapCell {
+  aspect-ratio: 1;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+  transition: opacity 0.3s ease;
+}
+
+.heatmapCellValue {
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.heatmapLegend {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  padding-top: 4px;
+}
+
+.heatmapLegendItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.legendDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
 }
 
 .chartTitle {
@@ -157,6 +216,10 @@
 @media (max-width: 700px) {
   .cardsGrid {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .chartsRow {
+    grid-template-columns: 1fr;
   }
 }
 

@@ -15,11 +15,8 @@ export default function HomePageLayout() {
           Detect. Analyze. Prevent. Keep every gathering safe with intelligent
           crowd density monitoring and instant risk alerts.
         </p>
-        <Link href="/dashboard" className={styles.ctaButton}>
-          Start Managing Crowd
-        </Link>
       </header>
-
+      
       {/* ── What It Does ─────────────────────── */}
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>What Is CrowdPulse AI?</h2>

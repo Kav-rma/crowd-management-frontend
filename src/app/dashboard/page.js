@@ -17,6 +17,7 @@ const ZONE_CAPACITY = 5;
 export default function DashboardPage() {
   const [stats, setStats] = useState(null);
   const [history, setHistory] = useState([]);
+  const [heatmapData, setHeatmapData] = useState([]);
   const [connected, setConnected] = useState(true);
 
   // Poll /api/stats every 2 seconds
@@ -50,16 +51,61 @@ export default function DashboardPage() {
     }
   }, []);
 
+  // Poll longer history for heatmap every 10 seconds
+  const fetchHeatmap = useCallback(async () => {
+    try {
+      const res = await fetch("/api/history?minutes=5");
+      if (!res.ok) return;
+      const data = await res.json();
+      // Group into 15-second buckets
+      const buckets = [];
+      for (let i = 0; i < data.length; i++) {
+        const row = data[i];
+        const d = new Date(row.timestamp);
+        const bucketKey = `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}:${String(Math.floor(d.getSeconds() / 15) * 15).padStart(2, "0")}`;
+        const last = buckets[buckets.length - 1];
+        if (last && last.key === bucketKey) {
+          last.densitySum += row.density_ratio;
+          last.count += 1;
+          last.maxRisk = Math.max(last.maxRisk, row.risk_score);
+          last.riskLevel = row.risk_level;
+        } else {
+          buckets.push({
+            key: bucketKey,
+            label: bucketKey,
+            densitySum: row.density_ratio,
+            count: 1,
+            maxRisk: row.risk_score,
+            riskLevel: row.risk_level,
+          });
+        }
+      }
+      setHeatmapData(
+        buckets.map((b) => ({
+          label: b.label,
+          density: Math.round((b.densitySum / b.count) * 100),
+          riskScore: b.maxRisk,
+          riskLevel: b.riskLevel,
+        }))
+      );
+    } catch {
+      // silent
+    }
+  }, []);
+
   useEffect(() => {
     fetchStats();
     fetchHistory();
+    fetchHeatmap();
     const statsInterval = setInterval(fetchStats, 2000);
     const historyInterval = setInterval(fetchHistory, 5000);
+    const heatmapInterval = setInterval(fetchHeatmap, 10000);
     return () => {
       clearInterval(statsInterval);
       clearInterval(historyInterval);
+      clearInterval(heatmapInterval);
     };
-  }, [fetchStats, fetchHistory]);
+  }, [fetchStats, fetchHistory, fetchHeatmap]);
 
   const riskLevel = stats?.risk_level || "Error";
   const riskColor = RISK_COLORS[riskLevel] || RISK_COLORS.Error;
@@ -159,48 +205,92 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Trend Chart ─────────────────────── */}
+      {/* ── Density Trend ─────────────────────── */}
       <div className={styles.chartCard}>
         <h2 className={styles.chartTitle}>Density Trend (Last 2 Minutes)</h2>
-        {history.length > 1 ? (
-          <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={history}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-              <XAxis
-                dataKey="time"
-                stroke="#888"
-                tick={{ fontSize: 11 }}
-                interval="preserveStartEnd"
-              />
-              <YAxis
-                stroke="#888"
-                domain={[0, 150]}
-                tick={{ fontSize: 11 }}
-                label={{
-                  value: "Density %",
-                  angle: -90,
-                  position: "insideLeft",
-                  fill: "#888",
-                  fontSize: 12,
-                }}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#1a1a2e",
-                  border: "1px solid #333",
-                  borderRadius: 8,
-                }}
-              />
-              <Line
-                type="monotone"
-                dataKey="density_pct"
-                stroke="#00e5ff"
-                strokeWidth={2}
-                dot={false}
-                name="Density %"
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          {history.length > 1 ? (
+            <ResponsiveContainer width="100%" height={250}>
+              <LineChart data={history}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                <XAxis
+                  dataKey="time"
+                  stroke="#888"
+                  tick={{ fontSize: 11 }}
+                  interval="preserveStartEnd"
+                />
+                <YAxis
+                  stroke="#888"
+                  domain={[0, 150]}
+                  tick={{ fontSize: 11 }}
+                  label={{
+                    value: "Density %",
+                    angle: -90,
+                    position: "insideLeft",
+                    fill: "#888",
+                    fontSize: 12,
+                  }}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#1a1a2e",
+                    border: "1px solid #333",
+                    borderRadius: 8,
+                  }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="density_pct"
+                  stroke="#00e5ff"
+                  strokeWidth={2}
+                  dot={false}
+                  name="Density %"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className={styles.chartPlaceholder}>Collecting data...</p>
+          )}
+      </div>
+
+      {/* ── Density Heatmap ───────────────────── */}
+      <div className={styles.chartCard} style={{ marginTop: 20 }}>
+        <h2 className={styles.chartTitle}>Density Heatmap (Last 5 Minutes)</h2>
+        {heatmapData.length > 0 ? (
+          <div className={styles.heatmapContainer}>
+            <div className={styles.heatmapGrid}>
+              {heatmapData.map((cell, i) => {
+                const color =
+                  RISK_COLORS[cell.riskLevel] || RISK_COLORS.Error;
+                const opacity = Math.max(0.15, Math.min(cell.density / 120, 1));
+                return (
+                  <div
+                    key={i}
+                    className={styles.heatmapCell}
+                    style={{ backgroundColor: color, opacity }}
+                    title={`${cell.label}\nDensity: ${cell.density}%\nRisk: ${cell.riskLevel}`}
+                  >
+                    <span className={styles.heatmapCellValue}>
+                      {cell.density}%
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className={styles.heatmapLegend}>
+              <span className={styles.heatmapLegendItem}>
+                <span className={styles.legendDot} style={{ backgroundColor: "#22c55e" }} /> Low
+              </span>
+              <span className={styles.heatmapLegendItem}>
+                <span className={styles.legendDot} style={{ backgroundColor: "#f59e0b" }} /> Medium
+              </span>
+              <span className={styles.heatmapLegendItem}>
+                <span className={styles.legendDot} style={{ backgroundColor: "#f97316" }} /> High
+              </span>
+              <span className={styles.heatmapLegendItem}>
+                <span className={styles.legendDot} style={{ backgroundColor: "#ef4444" }} /> Critical
+              </span>
+            </div>
+          </div>
         ) : (
           <p className={styles.chartPlaceholder}>Collecting data...</p>
         )}
