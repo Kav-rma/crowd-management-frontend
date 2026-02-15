@@ -1,210 +1,189 @@
-"use client";
+import Link from "next/link";
+import styles from "./Landing.module.css";
 
-import { useEffect, useState, useCallback } from "react";
-import {LineChart,Line,XAxis,YAxis,CartesianGrid,Tooltip,ResponsiveContainer,} from "recharts";
-import styles from "./Home.module.css";
-
-const RISK_COLORS = {
-  Low: "#22c55e",
-  Medium: "#f59e0b",
-  High: "#f97316",
-  Critical: "#ef4444",
-  Error: "#6b7280",
-};
-
-const ZONE_CAPACITY = 1;
-
-export default function Home() {
-  const [stats, setStats] = useState(null);
-  const [history, setHistory] = useState([]);
-  const [connected, setConnected] = useState(true);
-
-  // Poll /api/stats every 2 seconds
-  const fetchStats = useCallback(async () => {
-    try {
-      const res = await fetch("/api/stats");
-      if (!res.ok) throw new Error("Service unavailable");
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      setStats(data);
-      setConnected(true);
-    } catch {
-      setConnected(false);
-    }
-  }, []);
-
-  // Poll /api/history every 5 seconds
-  const fetchHistory = useCallback(async () => {
-    try {
-      const res = await fetch("/api/history?minutes=2");
-      if (!res.ok) return;
-      const data = await res.json();
-      const formatted = data.map((row) => ({
-        ...row,
-        time: new Date(row.timestamp).toLocaleTimeString(),
-        density_pct: Math.round(row.density_ratio * 100),
-      }));
-      setHistory(formatted);
-    } catch {
-      // silent — history is non-critical
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchStats();
-    fetchHistory();
-    const statsInterval = setInterval(fetchStats, 2000);
-    const historyInterval = setInterval(fetchHistory, 5000);
-    return () => {
-      clearInterval(statsInterval);
-      clearInterval(historyInterval);
-    };
-  }, [fetchStats, fetchHistory]);
-
-  const riskLevel = stats?.risk_level || "Error";
-  const riskColor = RISK_COLORS[riskLevel] || RISK_COLORS.Error;
-  const densityPct = stats ? Math.round(stats.density_ratio * 100) : 0;
-  const surgeFlagActive = stats?.surge_flag || false;
-  const durationHigh = stats?.duration_in_high_state || 0;
-
+export default function HomePageLayout() {
   return (
-    <div className={styles.dashboardContainer}>
-      <h1 className={styles.title}>AI Crowd Risk Monitor</h1>
+    <div className={styles.container}>
+      {/* ── Hero Section ──────────────────────── */}
+      <header className={styles.hero}>
+        <div className={styles.heroGlow} />
+        <h1 className={styles.logo}>CrowdPulse AI</h1>
+        <p className={styles.tagline}>
+          AI-Powered Real-Time Crowd Risk Monitoring
+        </p>
+        <p className={styles.subtitle}>
+          Detect. Analyze. Prevent. Keep every gathering safe with intelligent
+          crowd density monitoring and instant risk alerts.
+        </p>
+        <Link href="/dashboard" className={styles.ctaButton}>
+          Start Managing Crowd
+        </Link>
+      </header>
 
-      {!connected && (
-        <div className={styles.connectionBanner}>
-          AI service offline — retrying...
-        </div>
-      )}
+      {/* ── What It Does ─────────────────────── */}
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>What Is CrowdPulse AI?</h2>
+        <p className={styles.sectionText}>
+          CrowdPulse AI is a fixed-zone real-time crowd risk monitoring system.
+          It uses a live camera feed powered by YOLOv8 object detection to
+          continuously count people, estimate crowd density, detect sudden
+          surges, and classify risk levels — all in real time.
+        </p>
+        <p className={styles.sectionText}>
+          Unlike simple people counters, CrowdPulse AI is a{" "}
+          <strong>live crowd risk prediction engine</strong> that combines
+          density analysis, growth-rate tracking, and persistence monitoring to
+          deliver actionable safety insights before dangerous situations
+          escalate.
+        </p>
+      </section>
 
-      {surgeFlagActive && (
-        <div className={styles.surgeBanner}>SURGE DETECTED — Rapid crowd increase</div>
-      )}
+      {/* ── Key Features ─────────────────────── */}
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>Key Features</h2>
+        <div className={styles.featuresGrid}>
+          <div className={styles.featureCard}>
+            <span className={styles.featureIcon}>👁</span>
+            <h3 className={styles.featureTitle}>Real-Time Detection</h3>
+            <p className={styles.featureDesc}>
+              YOLOv8 processes live camera frames to detect and count people with
+              high accuracy, every 2 seconds.
+            </p>
+          </div>
 
-      {/* ── Live Camera Feed ────────────────── */}
-      <div className={styles.feedCard}>
-        <h2 className={styles.chartTitle}>Live Camera Feed</h2>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="http://127.0.0.1:5001/video_feed"
-          alt="Live camera feed"
-          className={styles.feedImg}
-        />
-      </div>
+          <div className={styles.featureCard}>
+            <span className={styles.featureIcon}>📊</span>
+            <h3 className={styles.featureTitle}>Density Analysis</h3>
+            <p className={styles.featureDesc}>
+              Computes crowd density as a ratio of current count to zone
+              capacity, giving a clear occupancy percentage.
+            </p>
+          </div>
 
-      {/* ── Metric Cards ────────────────────── */}
-      <div className={styles.cardsGrid}>
-        <div className={styles.metricCard}>
-          <span className={styles.metricLabel}>People Count</span>
-          <span className={styles.metricValue}>{stats?.current_count ?? "—"}</span>
-          <span className={styles.metricSub}>of {ZONE_CAPACITY} capacity</span>
-        </div>
+          <div className={styles.featureCard}>
+            <span className={styles.featureIcon}>⚡</span>
+            <h3 className={styles.featureTitle}>Surge Detection</h3>
+            <p className={styles.featureDesc}>
+              Tracks growth rate across time windows to instantly flag sudden
+              crowd build-ups before they become dangerous.
+            </p>
+          </div>
 
-        <div className={styles.metricCard}>
-          <span className={styles.metricLabel}>Density</span>
-          <span className={styles.metricValue}>{densityPct}%</span>
-          <div className={styles.densityBarTrack}>
-            <div
-              className={styles.densityBarFill}
-              style={{
-                width: `${Math.min(densityPct, 100)}%`,
-                backgroundColor: riskColor,
-              }}
-            />
+          <div className={styles.featureCard}>
+            <span className={styles.featureIcon}>🛡</span>
+            <h3 className={styles.featureTitle}>Risk Classification</h3>
+            <p className={styles.featureDesc}>
+              Four-level risk engine (Low, Medium, High, Critical) with
+              persistence monitoring for sustained overload alerts.
+            </p>
+          </div>
+
+          <div className={styles.featureCard}>
+            <span className={styles.featureIcon}>📈</span>
+            <h3 className={styles.featureTitle}>Live Dashboard</h3>
+            <p className={styles.featureDesc}>
+              Interactive dashboard with live camera feed, metric cards, density
+              bar, and real-time trend charts.
+            </p>
+          </div>
+
+          <div className={styles.featureCard}>
+            <span className={styles.featureIcon}>🗄</span>
+            <h3 className={styles.featureTitle}>Data Logging</h3>
+            <p className={styles.featureDesc}>
+              Every detection is timestamped and logged for historical trend
+              analysis, reporting, and auditing.
+            </p>
           </div>
         </div>
+      </section>
 
-        <div className={styles.metricCard}>
-          <span className={styles.metricLabel}>Risk Level</span>
-          <span className={styles.riskBadge} style={{ backgroundColor: riskColor }}>
-            {riskLevel}
-          </span>
-          <span className={styles.metricSub}>
-            Score: {stats?.risk_score?.toFixed(2) ?? "—"}
-          </span>
+      {/* ── How It Works ─────────────────────── */}
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>How It Works</h2>
+        <div className={styles.stepsRow}>
+          <div className={styles.step}>
+            <span className={styles.stepNumber}>1</span>
+            <h3 className={styles.stepTitle}>Capture</h3>
+            <p className={styles.stepDesc}>
+              A fixed camera continuously streams frames from the monitored
+              zone.
+            </p>
+          </div>
+          <div className={styles.stepDivider} />
+          <div className={styles.step}>
+            <span className={styles.stepNumber}>2</span>
+            <h3 className={styles.stepTitle}>Detect</h3>
+            <p className={styles.stepDesc}>
+              YOLOv8 AI model identifies and counts every person in each frame.
+            </p>
+          </div>
+          <div className={styles.stepDivider} />
+          <div className={styles.step}>
+            <span className={styles.stepNumber}>3</span>
+            <h3 className={styles.stepTitle}>Analyze</h3>
+            <p className={styles.stepDesc}>
+              Risk engine computes density, growth rate, and persistence to
+              classify threat level.
+            </p>
+          </div>
+          <div className={styles.stepDivider} />
+          <div className={styles.step}>
+            <span className={styles.stepNumber}>4</span>
+            <h3 className={styles.stepTitle}>Alert</h3>
+            <p className={styles.stepDesc}>
+              Dashboard displays live metrics and triggers alerts when risk
+              thresholds are crossed.
+            </p>
+          </div>
         </div>
+      </section>
 
-        <div className={styles.metricCard}>
-          <span className={styles.metricLabel}>Growth Rate</span>
-          <span className={styles.metricValue}>
-            {stats?.growth_rate !== undefined
-              ? (stats.growth_rate > 0 ? "+" : "") + stats.growth_rate
-              : "—"}
-          </span>
-          <span className={styles.metricSub}>persons / window</span>
+      {/* ── Tech Stack ───────────────────────── */}
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>Technology Stack</h2>
+        <div className={styles.techGrid}>
+          <div className={styles.techItem}>
+            <strong>AI Model</strong>
+            <span>YOLOv8 (Ultralytics)</span>
+          </div>
+          <div className={styles.techItem}>
+            <strong>Backend</strong>
+            <span>Python + Flask</span>
+          </div>
+          <div className={styles.techItem}>
+            <strong>Frontend</strong>
+            <span>Next.js + React</span>
+          </div>
+          <div className={styles.techItem}>
+            <strong>Computer Vision</strong>
+            <span>OpenCV</span>
+          </div>
+          <div className={styles.techItem}>
+            <strong>Deep Learning</strong>
+            <span>PyTorch</span>
+          </div>
+          <div className={styles.techItem}>
+            <strong>Architecture</strong>
+            <span>Microservices</span>
+          </div>
         </div>
+      </section>
 
-        <div className={styles.metricCard}>
-          <span className={styles.metricLabel}>Overload Duration</span>
-          <span className={styles.metricValue}>
-            {durationHigh > 0 ? `${durationHigh}s` : "—"}
-          </span>
-          <span className={styles.metricSub}>
-            {durationHigh >= 10
-              ? "CRITICAL — sustained overload"
-              : durationHigh > 0
-              ? "High density active"
-              : "Normal"}
-          </span>
-        </div>
+      {/* ── CTA Footer ───────────────────────── */}
+      <section className={styles.ctaSection}>
+        <h2 className={styles.ctaHeading}>Ready to Monitor?</h2>
+        <p className={styles.ctaText}>
+          Launch the real-time dashboard and start monitoring your zone now.
+        </p>
+        <Link href="/dashboard" className={styles.ctaButton}>
+          Start Managing Crowd
+        </Link>
+      </section>
 
-        <div className={styles.metricCard}>
-          <span className={styles.metricLabel}>Surge Alert</span>
-          <span
-            className={styles.metricValue}
-            style={{ color: surgeFlagActive ? "#ef4444" : "#22c55e" }}
-          >
-            {surgeFlagActive ? "ACTIVE" : "None"}
-          </span>
-        </div>
-      </div>
-
-      {/* ── Trend Chart ─────────────────────── */}
-      <div className={styles.chartCard}>
-        <h2 className={styles.chartTitle}>Density Trend (Last 2 Minutes)</h2>
-        {history.length > 1 ? (
-          <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={history}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-              <XAxis
-                dataKey="time"
-                stroke="#888"
-                tick={{ fontSize: 11 }}
-                interval="preserveStartEnd"
-              />
-              <YAxis
-                stroke="#888"
-                domain={[0, 150]}
-                tick={{ fontSize: 11 }}
-                label={{
-                  value: "Density %",
-                  angle: -90,
-                  position: "insideLeft",
-                  fill: "#888",
-                  fontSize: 12,
-                }}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#1a1a2e",
-                  border: "1px solid #333",
-                  borderRadius: 8,
-                }}
-              />
-              <Line
-                type="monotone"
-                dataKey="density_pct"
-                stroke="#00e5ff"
-                strokeWidth={2}
-                dot={false}
-                name="Density %"
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        ) : (
-          <p className={styles.chartPlaceholder}>Collecting data...</p>
-        )}
-      </div>
+      <footer className={styles.footer}>
+        <p>CrowdShield AI &mdash; AI-Based Fixed-Zone Crowd Risk Monitoring System</p>
+      </footer>
     </div>
   );
 }
