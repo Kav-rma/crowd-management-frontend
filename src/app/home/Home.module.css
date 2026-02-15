@@ -1,0 +1,171 @@
+/* ── Dashboard Layout ────────────────────── */
+.dashboardContainer {
+  min-height: 100vh;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 32px 20px;
+}
+
+.title {
+  font-size: 28px;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 24px;
+  color: #fff;
+  letter-spacing: -0.5px;
+}
+
+/* ── Connection Banner ───────────────────── */
+.connectionBanner {
+  background-color: #7f1d1d;
+  color: #fca5a5;
+  text-align: center;
+  padding: 10px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* ── Surge Banner ────────────────────────── */
+.surgeBanner {
+  background: linear-gradient(90deg, #dc2626, #b91c1c);
+  color: #fff;
+  text-align: center;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  animation: surge-pulse 1s ease-in-out infinite alternate;
+}
+
+@keyframes surge-pulse {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.7;
+  }
+}
+
+/* ── Metric Cards Grid ───────────────────── */
+.cardsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.metricCard {
+  background-color: #111827;
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.metricLabel {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #94a3b8;
+}
+
+.metricValue {
+  font-size: 32px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.1;
+}
+
+.metricSub {
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* ── Risk Badge ──────────────────────────── */
+.riskBadge {
+  display: inline-block;
+  width: fit-content;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.5px;
+}
+
+/* ── Density Bar ─────────────────────────── */
+.densityBarTrack {
+  width: 100%;
+  height: 8px;
+  background-color: #1e293b;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.densityBarFill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease, background-color 0.5s ease;
+}
+
+/* ── Live Feed Card ──────────────────────── */
+.feedCard {
+  background-color: #111827;
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.feedImg {
+  width: 100%;
+  border-radius: 8px;
+  display: block;
+}
+
+/* ── Chart Card ──────────────────────────── */
+.chartCard {
+  background-color: #111827;
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.chartTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: #cbd5e1;
+  margin-bottom: 16px;
+}
+
+.chartPlaceholder {
+  text-align: center;
+  color: #64748b;
+  padding: 40px 0;
+  font-size: 14px;
+}
+
+/* ── Responsive ──────────────────────────── */
+@media (max-width: 700px) {
+  .cardsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 450px) {
+  .cardsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .metricValue {
+    font-size: 24px;
+  }
+}
