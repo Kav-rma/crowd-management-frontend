@@ -13,7 +13,7 @@ export default function Navbar() {
           height={40}
           priority
         />
-        <span className={styles.brandName}>CrowdPulse AI</span>
+        {/* <span className={styles.brandName}>CrowdPulse AI</span> */}
       </Link>
       <div className={styles.navLinks}>
         <Link href="/" className={styles.navLink}>Home</Link>

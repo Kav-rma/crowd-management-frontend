@@ -1,15 +1,23 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import {LineChart,Line,XAxis,YAxis,CartesianGrid,Tooltip,ResponsiveContainer,} from "recharts";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 import styles from "@/app/dashboard/Dashboard.module.css";
 
 const RISK_COLORS = {
-  Low: "#22c55e",
-  Medium: "#f59e0b",
-  High: "#f97316",
-  Critical: "#ef4444",
-  Error: "#6b7280",
+  Low: "#10b981",    // Emerald 500
+  Medium: "#f59e0b", // Amber 500
+  High: "#f97316",   // Orange 500
+  Critical: "#ef4444", // Red 500
+  Error: "#94a3b8",  // Slate 400
 };
 
 const ZONE_CAPACITY = 5;
@@ -42,7 +50,7 @@ export default function DashboardPage() {
       const data = await res.json();
       const formatted = data.map((row) => ({
         ...row,
-        time: new Date(row.timestamp).toLocaleTimeString(),
+        time: new Date(row.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
         density_pct: Math.round(row.density_ratio * 100),
       }));
       setHistory(formatted);
@@ -127,133 +135,145 @@ export default function DashboardPage() {
         <div className={styles.surgeBanner}>SURGE DETECTED — Rapid crowd increase</div>
       )}
 
-      {/* ── Live Camera Feed ────────────────── */}
-      <div className={styles.feedCard}>
-        <h2 className={styles.chartTitle}>Live Camera Feed</h2>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="http://127.0.0.1:5001/video_feed"
-          alt="Live camera feed"
-          className={styles.feedImg}
-        />
-      </div>
-
-      {/* ── Metric Cards ────────────────────── */}
-      <div className={styles.cardsGrid}>
-        <div className={styles.metricCard}>
-          <span className={styles.metricLabel}>People Count</span>
-          <span className={styles.metricValue}>{stats?.current_count ?? "—"}</span>
-          <span className={styles.metricSub}>of {ZONE_CAPACITY} capacity</span>
+      {/* ── Top Section: Feed + Metrics ────────────────────── */}
+      <div className={styles.topSection}>
+        {/* ── Left: Live Camera Feed ────────────────── */}
+        <div className={styles.feedCard}>
+          <h2 className={styles.chartTitle}>Live Camera Feed</h2>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="http://127.0.0.1:5001/video_feed"
+            alt="Live camera feed"
+            className={styles.feedImg}
+          />
         </div>
 
-        <div className={styles.metricCard}>
-          <span className={styles.metricLabel}>Density</span>
-          <span className={styles.metricValue}>{densityPct}%</span>
-          <div className={styles.densityBarTrack}>
-            <div
-              className={styles.densityBarFill}
-              style={{
-                width: `${Math.min(densityPct, 100)}%`,
-                backgroundColor: riskColor,
-              }}
-            />
+        {/* ── Right: Metric Cards ────────────────────── */}
+        <div className={styles.cardsGrid}>
+          <div className={styles.metricCard}>
+            <span className={styles.metricLabel}>People Count</span>
+            <span className={styles.metricValue}>{stats?.current_count ?? "—"}</span>
+            <span className={styles.metricSub}>of {ZONE_CAPACITY} capacity</span>
           </div>
-        </div>
 
-        <div className={styles.metricCard}>
-          <span className={styles.metricLabel}>Risk Level</span>
-          <span className={styles.riskBadge} style={{ backgroundColor: riskColor }}>
-            {riskLevel}
-          </span>
-          <span className={styles.metricSub}>
-            Score: {stats?.risk_score?.toFixed(2) ?? "—"}
-          </span>
-        </div>
+          <div className={styles.metricCard}>
+            <span className={styles.metricLabel}>Density</span>
+            <span className={styles.metricValue}>{densityPct}%</span>
+            <div className={styles.densityBarTrack}>
+              <div
+                className={styles.densityBarFill}
+                style={{
+                  width: `${Math.min(densityPct, 100)}%`,
+                  backgroundColor: riskColor,
+                }}
+              />
+            </div>
+          </div>
 
-        <div className={styles.metricCard}>
-          <span className={styles.metricLabel}>Growth Rate</span>
-          <span className={styles.metricValue}>
-            {stats?.growth_rate !== undefined
-              ? (stats.growth_rate > 0 ? "+" : "") + stats.growth_rate
-              : "—"}
-          </span>
-          <span className={styles.metricSub}>persons / window</span>
-        </div>
+          <div className={styles.metricCard}>
+            <span className={styles.metricLabel}>Risk Level</span>
+            <span className={styles.riskBadge} style={{ backgroundColor: riskColor, boxShadow: `0 0 10px ${riskColor}` }}>
+              {riskLevel}
+            </span>
+            <span className={styles.metricSub}>
+              Score: {stats?.risk_score?.toFixed(2) ?? "—"}
+            </span>
+          </div>
 
-        <div className={styles.metricCard}>
-          <span className={styles.metricLabel}>Overload Duration</span>
-          <span className={styles.metricValue}>
-            {durationHigh > 0 ? `${durationHigh}s` : "—"}
-          </span>
-          <span className={styles.metricSub}>
-            {durationHigh >= 10
-              ? "CRITICAL — sustained overload"
-              : durationHigh > 0
-              ? "High density active"
-              : "Normal"}
-          </span>
-        </div>
+          <div className={styles.metricCard}>
+            <span className={styles.metricLabel}>Growth Rate</span>
+            <span className={styles.metricValue}>
+              {stats?.growth_rate !== undefined
+                ? (stats.growth_rate > 0 ? "+" : "") + stats.growth_rate
+                : "—"}
+            </span>
+            <span className={styles.metricSub}>persons / window</span>
+          </div>
 
-        <div className={styles.metricCard}>
-          <span className={styles.metricLabel}>Surge Alert</span>
-          <span
-            className={styles.metricValue}
-            style={{ color: surgeFlagActive ? "#ef4444" : "#22c55e" }}
-          >
-            {surgeFlagActive ? "ACTIVE" : "None"}
-          </span>
+          <div className={styles.metricCard}>
+            <span className={styles.metricLabel}>Overload Duration</span>
+            <span className={styles.metricValue}>
+              {durationHigh > 0 ? `${durationHigh}s` : "—"}
+            </span>
+            <span className={styles.metricSub}>
+              {durationHigh >= 10
+                ? "CRITICAL — sustained overload"
+                : durationHigh > 0
+                  ? "High density active"
+                  : "Normal"}
+            </span>
+          </div>
+
+          <div className={styles.metricCard}>
+            <span className={styles.metricLabel}>Surge Alert</span>
+            <span
+              className={styles.metricValue}
+              style={{ color: surgeFlagActive ? "#ef4444" : "#10b981" }}
+            >
+              {surgeFlagActive ? "ACTIVE" : "None"}
+            </span>
+          </div>
         </div>
       </div>
 
       {/* ── Density Trend ─────────────────────── */}
       <div className={styles.chartCard}>
         <h2 className={styles.chartTitle}>Density Trend (Last 2 Minutes)</h2>
-          {history.length > 1 ? (
-            <ResponsiveContainer width="100%" height={250}>
-              <LineChart data={history}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                <XAxis
-                  dataKey="time"
-                  stroke="#888"
-                  tick={{ fontSize: 11 }}
-                  interval="preserveStartEnd"
-                />
-                <YAxis
-                  stroke="#888"
-                  domain={[0, 150]}
-                  tick={{ fontSize: 11 }}
-                  label={{
-                    value: "Density %",
-                    angle: -90,
-                    position: "insideLeft",
-                    fill: "#888",
-                    fontSize: 12,
-                  }}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#1a1a2e",
-                    border: "1px solid #333",
-                    borderRadius: 8,
-                  }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="density_pct"
-                  stroke="#00e5ff"
-                  strokeWidth={2}
-                  dot={false}
-                  name="Density %"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          ) : (
-            <p className={styles.chartPlaceholder}>Collecting data...</p>
-          )}
+        {history.length > 1 ? (
+          <ResponsiveContainer width="100%" height={250}>
+            <LineChart data={history}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
+              <XAxis
+                dataKey="time"
+                stroke="#94a3b8"
+                tick={{ fontSize: 11, fill: '#94a3b8' }}
+                tickLine={{ stroke: '#94a3b8' }}
+                axisLine={{ stroke: '#94a3b8' }}
+                interval="preserveStartEnd"
+              />
+              <YAxis
+                stroke="#94a3b8"
+                domain={[0, 150]}
+                tick={{ fontSize: 11, fill: '#94a3b8' }}
+                tickLine={{ stroke: '#94a3b8' }}
+                axisLine={{ stroke: '#94a3b8' }}
+                label={{
+                  value: "Density %",
+                  angle: -90,
+                  position: "insideLeft",
+                  fill: "#94a3b8",
+                  fontSize: 12,
+                }}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "rgba(30, 41, 59, 0.8)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: 8,
+                  backdropFilter: "blur(4px)",
+                  color: "#f1f5f9",
+                }}
+                itemStyle={{ color: "#f1f5f9" }}
+                labelStyle={{ color: "#94a3b8" }}
+              />
+              <Line
+                type="monotone"
+                dataKey="density_pct"
+                stroke="#06b6d4" /* Cyan accent */
+                strokeWidth={3}
+                dot={false}
+                activeDot={{ r: 6, fill: "#06b6d4", stroke: "#fff" }}
+                name="Density %"
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        ) : (
+          <p className={styles.chartPlaceholder}>Collecting data...</p>
+        )}
       </div>
 
       {/* ── Density Heatmap ───────────────────── */}
-      <div className={styles.chartCard} style={{ marginTop: 20 }}>
+      <div className={styles.chartCard} style={{ marginTop: 24 }}>
         <h2 className={styles.chartTitle}>Density Heatmap (Last 5 Minutes)</h2>
         {heatmapData.length > 0 ? (
           <div className={styles.heatmapContainer}>
@@ -261,7 +281,8 @@ export default function DashboardPage() {
               {heatmapData.map((cell, i) => {
                 const color =
                   RISK_COLORS[cell.riskLevel] || RISK_COLORS.Error;
-                const opacity = Math.max(0.15, Math.min(cell.density / 120, 1));
+                // Adjust opacity logic for better visibility on dark bg
+                const opacity = Math.max(0.2, Math.min(cell.density / 120, 1));
                 return (
                   <div
                     key={i}
@@ -278,16 +299,16 @@ export default function DashboardPage() {
             </div>
             <div className={styles.heatmapLegend}>
               <span className={styles.heatmapLegendItem}>
-                <span className={styles.legendDot} style={{ backgroundColor: "#22c55e" }} /> Low
+                <span className={styles.legendDot} style={{ backgroundColor: "#10b981", boxShadow: "0 0 8px #10b981" }} /> Low
               </span>
               <span className={styles.heatmapLegendItem}>
-                <span className={styles.legendDot} style={{ backgroundColor: "#f59e0b" }} /> Medium
+                <span className={styles.legendDot} style={{ backgroundColor: "#f59e0b", boxShadow: "0 0 8px #f59e0b" }} /> Medium
               </span>
               <span className={styles.heatmapLegendItem}>
-                <span className={styles.legendDot} style={{ backgroundColor: "#f97316" }} /> High
+                <span className={styles.legendDot} style={{ backgroundColor: "#f97316", boxShadow: "0 0 8px #f97316" }} /> High
               </span>
               <span className={styles.heatmapLegendItem}>
-                <span className={styles.legendDot} style={{ backgroundColor: "#ef4444" }} /> Critical
+                <span className={styles.legendDot} style={{ backgroundColor: "#ef4444", boxShadow: "0 0 8px #ef4444" }} /> Critical
               </span>
             </div>
           </div>

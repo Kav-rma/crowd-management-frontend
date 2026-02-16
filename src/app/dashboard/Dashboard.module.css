@@ -1,234 +1,357 @@
 /* ── Dashboard Layout ────────────────────── */
 .dashboardContainer {
   min-height: 100vh;
-  max-width: 960px;
+  max-width: 1200px;
+  /* Increased max-width for better use of space */
   margin: 0 auto;
-  padding: 32px 20px;
+  padding: 40px 24px;
+  animation: fadeIn 0.8s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .title {
-  font-size: 28px;
-  font-weight: 700;
-  text-align: center;
-  margin-bottom: 24px;
-  color: #fff;
-  letter-spacing: -0.5px;
+  font-size: 36px;
+  font-weight: 800;
+  text-align: left;
+  margin-bottom: 32px;
+  background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -1px;
+  position: relative;
+  display: inline-block;
+}
+
+.title::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 60px;
+  height: 4px;
+  background: var(--accent-blue);
+  border-radius: 2px;
 }
 
 /* ── Connection Banner ───────────────────── */
 .connectionBanner {
-  background-color: #7f1d1d;
+  background: rgba(239, 68, 68, 0.15);
   color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.3);
   text-align: center;
-  padding: 10px 16px;
-  border-radius: 8px;
-  margin-bottom: 16px;
+  padding: 12px 20px;
+  border-radius: 12px;
+  margin-bottom: 24px;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
+  backdrop-filter: blur(8px);
 }
 
 /* ── Surge Banner ────────────────────────── */
 .surgeBanner {
-  background: linear-gradient(90deg, #dc2626, #b91c1c);
-  color: #fff;
+  background: linear-gradient(90deg, rgba(220, 38, 38, 0.2), rgba(185, 28, 28, 0.2));
+  color: #ffcccc;
+  border: 1px solid rgba(220, 38, 38, 0.4);
   text-align: center;
-  padding: 12px 16px;
-  border-radius: 8px;
-  margin-bottom: 16px;
+  padding: 16px 20px;
+  border-radius: 12px;
+  margin-bottom: 24px;
   font-size: 16px;
   font-weight: 700;
-  letter-spacing: 1px;
-  animation: surge-pulse 1s ease-in-out infinite alternate;
+  letter-spacing: 0.5px;
+  animation: surge-pulse 1.5s ease-in-out infinite alternate;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 0 20px rgba(220, 38, 38, 0.2);
 }
 
 @keyframes surge-pulse {
   from {
-    opacity: 1;
+    box-shadow: 0 0 15px rgba(220, 38, 38, 0.1);
+    border-color: rgba(220, 38, 38, 0.3);
   }
+
   to {
-    opacity: 0.7;
+    box-shadow: 0 0 30px rgba(220, 38, 38, 0.4);
+    border-color: rgba(220, 38, 38, 0.6);
   }
+}
+
+/* ── Top Section Layout ──────────────────── */
+.topSection {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 24px;
+  margin-bottom: 32px;
+  align-items: start;
 }
 
 /* ── Metric Cards Grid ───────────────────── */
 .cardsGrid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 16px;
-  margin-bottom: 24px;
+  height: 100%;
 }
 
 .metricCard {
-  background-color: #111827;
-  border: 1px solid #1e293b;
-  border-radius: 12px;
-  padding: 20px;
+  background: rgba(30, 41, 59, 0.4);
+  /* Glass background */
+  border: var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 16px;
+  padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.metricCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.4);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Subtle gradient glow for aesthetic */
+.metricCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
 }
 
 .metricLabel {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: #94a3b8;
+  letter-spacing: 1px;
+  color: var(--text-secondary);
 }
 
 .metricValue {
-  font-size: 32px;
-  font-weight: 700;
+  font-size: 36px;
+  font-weight: 800;
   color: #fff;
   line-height: 1.1;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 }
 
 .metricSub {
-  font-size: 12px;
-  color: #64748b;
+  font-size: 13px;
+  color: rgba(148, 163, 184, 0.8);
+  margin-top: auto;
+  /* Push to bottom if needed */
 }
 
 /* ── Risk Badge ──────────────────────────── */
 .riskBadge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: fit-content;
   padding: 6px 16px;
-  border-radius: 20px;
-  font-size: 16px;
+  border-radius: 999px;
+  /* Pill shape */
+  font-size: 14px;
   font-weight: 700;
   color: #fff;
   letter-spacing: 0.5px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  text-transform: uppercase;
 }
 
 /* ── Density Bar ─────────────────────────── */
 .densityBarTrack {
   width: 100%;
-  height: 8px;
-  background-color: #1e293b;
-  border-radius: 4px;
+  height: 6px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
   overflow: hidden;
-  margin-top: 4px;
+  margin-top: 8px;
 }
 
 .densityBarFill {
   height: 100%;
-  border-radius: 4px;
-  transition: width 0.5s ease, background-color 0.5s ease;
+  border-radius: 3px;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.5s ease;
+  box-shadow: 0 0 10px currentColor;
+  /* Glow effect */
 }
 
 /* ── Live Feed Card ──────────────────────── */
 .feedCard {
-  background-color: #111827;
-  border: 1px solid #1e293b;
-  border-radius: 12px;
+  background: rgba(30, 41, 59, 0.4);
+  border: var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 16px;
   padding: 24px;
-  margin-bottom: 24px;
+  height: 100%;
+  /* Match height of cards grid if possible, or usually just fit content */
+  display: flex;
+  flex-direction: column;
 }
 
 .feedImg {
   width: 100%;
-  border-radius: 8px;
+  border-radius: 12px;
   display: block;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  flex-grow: 1;
+  object-fit: cover;
 }
 
 /* ── Charts Row ─────────────────────────── */
+/* Not strictly used in current page.js structure but kept for layout */
 .chartsRow {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 20px;
+  gap: 24px;
 }
 
 /* ── Chart Card ──────────────────────────── */
 .chartCard {
-  background-color: #111827;
-  border: 1px solid #1e293b;
-  border-radius: 12px;
+  background: rgba(30, 41, 59, 0.4);
+  border: var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 16px;
   padding: 24px;
+  /* margin-bottom to separate if stacked */
+  margin-bottom: 24px;
 }
 
 /* ── Heatmap Grid ───────────────────────── */
 .heatmapContainer {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
 
 .heatmapGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
-  gap: 4px;
+  grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+  gap: 6px;
 }
 
 .heatmapCell {
   aspect-ratio: 1;
-  border-radius: 6px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: default;
-  transition: opacity 0.3s ease;
+  transition: transform 0.2s ease, opacity 0.3s ease;
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.heatmapCell:hover {
+  transform: scale(1.1);
+  z-index: 10;
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
 .heatmapCellValue {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   color: #fff;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
 }
 
 .heatmapLegend {
   display: flex;
   justify-content: center;
-  gap: 16px;
-  padding-top: 4px;
+  gap: 24px;
+  padding-top: 8px;
 }
 
 .heatmapLegendItem {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: #94a3b8;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
 }
 
 .legendDot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  /* Soft square */
   display: inline-block;
+  box-shadow: 0 0 8px currentColor;
 }
 
 .chartTitle {
-  font-size: 16px;
-  font-weight: 600;
-  color: #cbd5e1;
-  margin-bottom: 16px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #e2e8f0;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.chartTitle::before {
+  content: '';
+  width: 4px;
+  height: 18px;
+  background: var(--accent-cyan);
+  border-radius: 2px;
+  display: block;
 }
 
 .chartPlaceholder {
   text-align: center;
-  color: #64748b;
-  padding: 40px 0;
-  font-size: 14px;
+  color: var(--text-secondary);
+  padding: 60px 0;
+  font-size: 15px;
+  font-style: italic;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 12px;
 }
 
 /* ── Responsive ──────────────────────────── */
-@media (max-width: 700px) {
+@media (max-width: 800px) {
   .cardsGrid {
     grid-template-columns: repeat(2, 1fr);
   }
-
-  .chartsRow {
-    grid-template-columns: 1fr;
-  }
 }
 
-@media (max-width: 450px) {
+@media (max-width: 500px) {
   .cardsGrid {
     grid-template-columns: 1fr;
   }
 
   .metricValue {
-    font-size: 24px;
+    font-size: 28px;
+  }
+
+  .title {
+    font-size: 28px;
   }
 }
