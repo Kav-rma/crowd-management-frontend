@@ -1,321 +1,442 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   LineChart,
   Line,
   XAxis,
   YAxis,
-  CartesianGrid,
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import styles from "@/app/dashboard/Dashboard.module.css";
+import styles from "./Dashboard.module.css";
 
+// ── Risk colour map ───────────────────────────
 const RISK_COLORS = {
-  Low: "#10b981",    // Emerald 500
-  Medium: "#f59e0b", // Amber 500
-  High: "#f97316",   // Orange 500
-  Critical: "#ef4444", // Red 500
-  Error: "#94a3b8",  // Slate 400
+  Low:      "#10b981",
+  Medium:   "#f59e0b",
+  High:     "#f97316",
+  Critical: "#ef4444",
 };
 
-const ZONE_CAPACITY = 5;
+// ── Fruin colour map ──────────────────────────
+const FRUIN_COLORS = {
+  Free:        "#10b981",
+  Restricted:  "#3b82f6",
+  Constrained: "#f59e0b",
+  Dangerous:   "#f97316",
+  Critical:    "#ef4444",
+};
 
-export default function DashboardPage() {
-  const [stats, setStats] = useState(null);
-  const [history, setHistory] = useState([]);
-  const [heatmapData, setHeatmapData] = useState([]);
-  const [connected, setConnected] = useState(true);
+// ── Fruin descriptions ────────────────────────
+const FRUIN_DESC = {
+  Free:        "Free movement",
+  Restricted:  "Restricted movement",
+  Constrained: "Body contact possible",
+  Dangerous:   "Pushing / crowd pressure",
+  Critical:    "Crush risk",
+};
 
-  // Poll /api/stats every 2 seconds
+export default function Dashboard() {
+  const [stats, setStats]             = useState(null);
+  const [zone, setZone]               = useState(null);
+  const [trendData, setTrend]         = useState([]);
+  const [heatData, setHeat]           = useState([]);
+  const [error, setError]             = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [recalibrating, setRecalibrating] = useState(false);
+  const [recalibMsg, setRecalibMsg]   = useState(null);
+
+  // ── Fetch current stats ───────────────────
   const fetchStats = useCallback(async () => {
     try {
       const res = await fetch("/api/stats");
-      if (!res.ok) throw new Error("Service unavailable");
+      if (!res.ok) throw new Error("Backend offline");
       const data = await res.json();
-      if (data.error) throw new Error(data.error);
       setStats(data);
-      setConnected(true);
+      setError(false);
+      setLastUpdated(new Date().toLocaleTimeString());
     } catch {
-      setConnected(false);
+      setError(true);
     }
   }, []);
 
-  // Poll /api/history every 5 seconds
-  const fetchHistory = useCallback(async () => {
+  // ── Fetch zone info ───────────────────────
+  const fetchZone = useCallback(async () => {
+    try {
+      const res = await fetch("/api/zone");
+      if (!res.ok) return;
+      const data = await res.json();
+      setZone(data);
+    } catch {}
+  }, []);
+
+  // ── Fetch trend chart data ────────────────
+  const fetchTrend = useCallback(async () => {
     try {
       const res = await fetch("/api/history?minutes=2");
       if (!res.ok) return;
-      const data = await res.json();
-      const formatted = data.map((row) => ({
-        ...row,
-        time: new Date(row.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-        density_pct: Math.round(row.density_ratio * 100),
+      const rows = await res.json();
+      const formatted = rows.map((r) => ({
+        time:    new Date(r.timestamp).toLocaleTimeString(),
+        density: Math.round((r.occupancy_ratio || r.density_ratio || 0) * 100),
+        count:   r.current_count,
       }));
-      setHistory(formatted);
-    } catch {
-      // silent — history is non-critical
-    }
+      setTrend(formatted);
+    } catch {}
   }, []);
 
-  // Poll longer history for heatmap every 10 seconds
-  const fetchHeatmap = useCallback(async () => {
+  // ── Fetch heatmap data ────────────────────
+  const fetchHeat = useCallback(async () => {
     try {
       const res = await fetch("/api/history?minutes=5");
       if (!res.ok) return;
-      const data = await res.json();
-      // Group into 15-second buckets
-      const buckets = [];
-      for (let i = 0; i < data.length; i++) {
-        const row = data[i];
-        const d = new Date(row.timestamp);
-        const bucketKey = `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}:${String(Math.floor(d.getSeconds() / 15) * 15).padStart(2, "0")}`;
-        const last = buckets[buckets.length - 1];
-        if (last && last.key === bucketKey) {
-          last.densitySum += row.density_ratio;
-          last.count += 1;
-          last.maxRisk = Math.max(last.maxRisk, row.risk_score);
-          last.riskLevel = row.risk_level;
-        } else {
-          buckets.push({
-            key: bucketKey,
-            label: bucketKey,
-            densitySum: row.density_ratio,
-            count: 1,
-            maxRisk: row.risk_score,
-            riskLevel: row.risk_level,
-          });
-        }
-      }
-      setHeatmapData(
-        buckets.map((b) => ({
-          label: b.label,
-          density: Math.round((b.densitySum / b.count) * 100),
-          riskScore: b.maxRisk,
-          riskLevel: b.riskLevel,
-        }))
-      );
-    } catch {
-      // silent
-    }
+      const rows = await res.json();
+      setHeat(rows);
+    } catch {}
   }, []);
 
+  // ── Recalibrate zone ──────────────────────
+  const handleRecalibrate = async () => {
+    setRecalibrating(true);
+    setRecalibMsg(null);
+    try {
+      const res = await fetch("/api/recalibrate", { method: "POST" });
+      const data = await res.json();
+      if (data.status === "recalibrated") {
+        setRecalibMsg("Recalibrated successfully");
+        fetchZone();
+        fetchStats();
+      } else {
+        setRecalibMsg("Recalibration failed — try again");
+      }
+    } catch {
+      setRecalibMsg("Backend offline");
+    }
+    setRecalibrating(false);
+    setTimeout(() => setRecalibMsg(null), 4000);
+  };
+
+  // ── Polling intervals ─────────────────────
   useEffect(() => {
     fetchStats();
-    fetchHistory();
-    fetchHeatmap();
-    const statsInterval = setInterval(fetchStats, 2000);
-    const historyInterval = setInterval(fetchHistory, 5000);
-    const heatmapInterval = setInterval(fetchHeatmap, 10000);
+    fetchZone();
+    fetchTrend();
+    fetchHeat();
+    const i1 = setInterval(fetchStats, 2000);
+    const i2 = setInterval(fetchTrend, 5000);
+    const i3 = setInterval(fetchHeat,  10000);
+    const i4 = setInterval(fetchZone,  30000);
     return () => {
-      clearInterval(statsInterval);
-      clearInterval(historyInterval);
-      clearInterval(heatmapInterval);
+      clearInterval(i1);
+      clearInterval(i2);
+      clearInterval(i3);
+      clearInterval(i4);
     };
-  }, [fetchStats, fetchHistory, fetchHeatmap]);
+  }, [fetchStats, fetchTrend, fetchHeat, fetchZone]);
 
-  const riskLevel = stats?.risk_level || "Error";
-  const riskColor = RISK_COLORS[riskLevel] || RISK_COLORS.Error;
-  const densityPct = stats ? Math.round(stats.density_ratio * 100) : 0;
-  const surgeFlagActive = stats?.surge_flag || false;
-  const durationHigh = stats?.duration_in_high_state || 0;
+  // ── Heatmap bucket builder ────────────────
+  const buildHeatBuckets = () => {
+    if (!heatData.length) return [];
+    const buckets = {};
+    heatData.forEach((r) => {
+      const t   = new Date(r.timestamp);
+      const key = Math.floor(t.getTime() / 15000) * 15000;
+      if (!buckets[key]) buckets[key] = [];
+      buckets[key].push(r.occupancy_ratio || r.density_ratio || 0);
+    });
+    return Object.entries(buckets)
+      .sort(([a], [b]) => a - b)
+      .slice(-20)
+      .map(([key, vals]) => ({
+        time: new Date(Number(key)).toLocaleTimeString(),
+        avg:  vals.reduce((a, b) => a + b, 0) / vals.length,
+      }));
+  };
+
+  const heatBuckets = buildHeatBuckets();
+
+  // ── Occupancy bar calculations ────────────
+  const occupancyPct = stats
+    ? Math.min((stats.current_count / (stats.zone_max_capacity || 1)) * 100, 100)
+    : 0;
+
+  const safeLinePct = stats && stats.zone_max_capacity
+    ? ((stats.zone_safe_capacity || 0) / stats.zone_max_capacity) * 100
+    : 70;
+
+  // ── Offline screen ────────────────────────
+  if (error) {
+    return (
+      <div className={styles.offlineContainer}>
+        <div className={styles.offlineBox}>
+          <div className={styles.offlineDot} />
+          <h2>Backend Offline</h2>
+          <p>Make sure the Python Flask server is running on port 5001.</p>
+          <code>python app.py</code>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className={styles.dashboardContainer}>
-      <h1 className={styles.title}>AI Crowd Risk Monitor</h1>
+    <div className={styles.dashboard}>
 
-      {!connected && (
-        <div className={styles.connectionBanner}>
-          AI service offline — retrying...
+      {/* ── Header ───────────────────────── */}
+      <div className={styles.header}>
+        <div>
+          <h1 className={styles.title}>CrowdPulse AI</h1>
+          <p className={styles.subtitle}>
+            {zone
+              ? `${zone.zone_name} · ${zone.usable_area_m2} m² · AI-inferred capacity`
+              : "Connecting to backend..."}
+          </p>
         </div>
-      )}
-
-      {surgeFlagActive && (
-        <div className={styles.surgeBanner}>SURGE DETECTED — Rapid crowd increase</div>
-      )}
-
-      {/* ── Top Section: Feed + Metrics ────────────────────── */}
-      <div className={styles.topSection}>
-        {/* ── Left: Live Camera Feed ────────────────── */}
-        <div className={styles.feedCard}>
-          <h2 className={styles.chartTitle}>Live Camera Feed</h2>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="http://127.0.0.1:5001/video_feed"
-            alt="Live camera feed"
-            className={styles.feedImg}
-          />
-        </div>
-
-        {/* ── Right: Metric Cards ────────────────────── */}
-        <div className={styles.cardsGrid}>
-          <div className={styles.metricCard}>
-            <span className={styles.metricLabel}>People Count</span>
-            <span className={styles.metricValue}>{stats?.current_count ?? "—"}</span>
-            <span className={styles.metricSub}>of {ZONE_CAPACITY} capacity</span>
+        <div className={styles.headerRight}>
+          <div className={styles.liveChip}>
+            <span className={styles.liveDot} />
+            LIVE
           </div>
-
-          <div className={styles.metricCard}>
-            <span className={styles.metricLabel}>Density</span>
-            <span className={styles.metricValue}>{densityPct}%</span>
-            <div className={styles.densityBarTrack}>
-              <div
-                className={styles.densityBarFill}
-                style={{
-                  width: `${Math.min(densityPct, 100)}%`,
-                  backgroundColor: riskColor,
-                }}
-              />
-            </div>
-          </div>
-
-          <div className={styles.metricCard}>
-            <span className={styles.metricLabel}>Risk Level</span>
-            <span className={styles.riskBadge} style={{ backgroundColor: riskColor, boxShadow: `0 0 10px ${riskColor}` }}>
-              {riskLevel}
-            </span>
-            <span className={styles.metricSub}>
-              Score: {stats?.risk_score?.toFixed(2) ?? "—"}
-            </span>
-          </div>
-
-          <div className={styles.metricCard}>
-            <span className={styles.metricLabel}>Growth Rate</span>
-            <span className={styles.metricValue}>
-              {stats?.growth_rate !== undefined
-                ? (stats.growth_rate > 0 ? "+" : "") + stats.growth_rate
-                : "—"}
-            </span>
-            <span className={styles.metricSub}>persons / window</span>
-          </div>
-
-          <div className={styles.metricCard}>
-            <span className={styles.metricLabel}>Overload Duration</span>
-            <span className={styles.metricValue}>
-              {durationHigh > 0 ? `${durationHigh}s` : "—"}
-            </span>
-            <span className={styles.metricSub}>
-              {durationHigh >= 10
-                ? "CRITICAL — sustained overload"
-                : durationHigh > 0
-                  ? "High density active"
-                  : "Normal"}
-            </span>
-          </div>
-
-          <div className={styles.metricCard}>
-            <span className={styles.metricLabel}>Surge Alert</span>
-            <span
-              className={styles.metricValue}
-              style={{ color: surgeFlagActive ? "#ef4444" : "#10b981" }}
-            >
-              {surgeFlagActive ? "ACTIVE" : "None"}
-            </span>
-          </div>
+          {lastUpdated && (
+            <span className={styles.lastUpdated}>Updated {lastUpdated}</span>
+          )}
         </div>
       </div>
 
-      {/* ── Density Trend ─────────────────────── */}
+      {/* ── Recalibrate bar ──────────────── */}
+      <div className={styles.recalibrateRow}>
+        <button
+          className={styles.recalibrateBtn}
+          onClick={handleRecalibrate}
+          disabled={recalibrating}
+        >
+          {recalibrating ? "Recalibrating..." : "Recalibrate Zone"}
+        </button>
+        {recalibMsg && (
+          <span className={styles.recalibMsg}>{recalibMsg}</span>
+        )}
+        <span className={styles.recalibrateHint}>
+          Clear the area before recalibrating
+        </span>
+      </div>
+
+      {/* ── Occupancy bar ────────────────── */}
+      {stats && (
+        <div className={styles.occupancySection}>
+          <div className={styles.occupancyHeader}>
+            <span className={styles.occupancyLabel}>Occupancy</span>
+            <span className={styles.occupancyCount}>
+              <strong>{stats.current_count}</strong>
+              <span> / {stats.zone_safe_capacity} safe · {stats.zone_max_capacity} max</span>
+            </span>
+            <span className={styles.occupancyPct}>{stats.occupancy_pct}</span>
+          </div>
+          <div className={styles.occupancyBar}>
+            <div
+              className={styles.occupancyFill}
+              style={{
+                width:      `${occupancyPct}%`,
+                background: RISK_COLORS[stats.risk_level] || "#10b981",
+              }}
+            />
+            <div
+              className={styles.safeMarker}
+              style={{ left: `${safeLinePct}%` }}
+              title={`Safe limit: ${stats.zone_safe_capacity}`}
+            />
+          </div>
+          <div className={styles.occupancyLegend}>
+            <span>0</span>
+            <span style={{ marginLeft: `${safeLinePct}%` }}>
+              Safe ({stats.zone_safe_capacity})
+            </span>
+            <span style={{ marginLeft: "auto" }}>
+              Max ({stats.zone_max_capacity})
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* ── Metric cards ─────────────────── */}
+      <div className={styles.cardsGrid}>
+
+        <div className={styles.card}>
+          <div className={styles.cardLabel}>People detected</div>
+          <div className={styles.cardValue}>
+            {stats ? stats.current_count : "—"}
+          </div>
+          <div className={styles.cardSub}>
+            {stats ? `${stats.safe_slots_left} slots before alert` : ""}
+          </div>
+        </div>
+
+        <div className={styles.card}>
+          <div className={styles.cardLabel}>Risk level</div>
+          <div
+            className={styles.cardValue}
+            style={{ color: stats ? RISK_COLORS[stats.risk_level] : "#888" }}
+          >
+            {stats ? stats.risk_level : "—"}
+          </div>
+          <div className={styles.cardSub}>
+            Score: {stats ? stats.risk_score : "—"}
+          </div>
+        </div>
+
+        <div className={styles.card}>
+          <div className={styles.cardLabel}>Fruin LoS</div>
+          <div
+            className={styles.cardValue}
+            style={{ color: stats ? FRUIN_COLORS[stats.fruin_level] : "#888" }}
+          >
+            {stats ? stats.fruin_level : "—"}
+          </div>
+          <div className={styles.cardSub}>
+            {stats ? FRUIN_DESC[stats.fruin_level] : ""}
+          </div>
+        </div>
+
+        <div className={styles.card}>
+          <div className={styles.cardLabel}>Density</div>
+          <div className={styles.cardValue}>
+            {stats ? stats.density_per_m2 : "—"}
+          </div>
+          <div className={styles.cardSub}>people / m²</div>
+        </div>
+
+        <div className={styles.card}>
+          <div className={styles.cardLabel}>Time to safe limit</div>
+          <div
+            className={styles.cardValue}
+            style={{
+              color:
+                stats?.time_to_safe_breach_sec != null &&
+                stats.time_to_safe_breach_sec < 120
+                  ? "#ef4444"
+                  : "#10b981",
+            }}
+          >
+            {stats ? stats.time_to_safe_breach_label : "—"}
+          </div>
+          <div className={styles.cardSub}>
+            Fill rate: {stats ? `${stats.fill_rate_per_min} p/min` : "—"}
+          </div>
+        </div>
+
+        <div className={styles.card}>
+          <div className={styles.cardLabel}>Surge alert</div>
+          <div
+            className={styles.cardValue}
+            style={{ color: stats?.surge_flag ? "#ef4444" : "#10b981" }}
+          >
+            {stats ? (stats.surge_flag ? "SURGE" : "Normal") : "—"}
+          </div>
+          <div className={styles.cardSub}>
+            Growth: {stats ? `${stats.growth_rate} people` : "—"}
+          </div>
+        </div>
+
+        <div className={styles.card}>
+          <div className={styles.cardLabel}>Overload duration</div>
+          <div className={styles.cardValue}>
+            {stats ? `${stats.duration_in_high_state}s` : "—"}
+          </div>
+          <div className={styles.cardSub}>seconds in high state</div>
+        </div>
+
+        <div className={styles.card}>
+          <div className={styles.cardLabel}>Zone area</div>
+          <div className={styles.cardValue}>
+            {stats ? `${stats.zone_area_m2} m²` : "—"}
+          </div>
+          <div className={styles.cardSub}>AI-inferred · YOLOv8-seg</div>
+        </div>
+
+      </div>
+
+      {/* ── Video feeds row ──────────────── */}
+      <div className={styles.mediaRow}>
+
+        <div className={styles.videoCard}>
+          <div className={styles.sectionTitle}>Live camera — YOLO detection</div>
+          <img
+            src="http://127.0.0.1:5001/video_feed"
+            alt="Live Camera Feed"
+            className={styles.videoFeed}
+          />
+        </div>
+
+        <div className={styles.videoCard}>
+          <div className={styles.sectionTitle}>Floor detection — AI zone map</div>
+          <img
+            src="http://127.0.0.1:5001/zone_preview"
+            alt="Zone Preview"
+            className={styles.videoFeed}
+          />
+        </div>
+
+      </div>
+
+      {/* ── Trend chart ──────────────────── */}
       <div className={styles.chartCard}>
-        <h2 className={styles.chartTitle}>Density Trend (Last 2 Minutes)</h2>
-        {history.length > 1 ? (
-          <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={history}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
-              <XAxis
-                dataKey="time"
-                stroke="#94a3b8"
-                tick={{ fontSize: 11, fill: '#94a3b8' }}
-                tickLine={{ stroke: '#94a3b8' }}
-                axisLine={{ stroke: '#94a3b8' }}
-                interval="preserveStartEnd"
-              />
+        <div className={styles.sectionTitle}>Occupancy trend — last 2 minutes</div>
+        {trendData.length > 0 ? (
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={trendData}>
+              <XAxis dataKey="time" tick={{ fontSize: 11 }} />
               <YAxis
-                stroke="#94a3b8"
-                domain={[0, 150]}
-                tick={{ fontSize: 11, fill: '#94a3b8' }}
-                tickLine={{ stroke: '#94a3b8' }}
-                axisLine={{ stroke: '#94a3b8' }}
-                label={{
-                  value: "Density %",
-                  angle: -90,
-                  position: "insideLeft",
-                  fill: "#94a3b8",
-                  fontSize: 12,
-                }}
+                domain={[0, 100]}
+                tickFormatter={(v) => `${v}%`}
+                tick={{ fontSize: 11 }}
               />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "rgba(30, 41, 59, 0.8)",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  borderRadius: 8,
-                  backdropFilter: "blur(4px)",
-                  color: "#f1f5f9",
-                }}
-                itemStyle={{ color: "#f1f5f9" }}
-                labelStyle={{ color: "#94a3b8" }}
-              />
+              <Tooltip formatter={(v) => [`${v}%`, "Occupancy"]} />
               <Line
                 type="monotone"
-                dataKey="density_pct"
-                stroke="#06b6d4" /* Cyan accent */
-                strokeWidth={3}
+                dataKey="density"
+                stroke="#7F77DD"
+                strokeWidth={2}
                 dot={false}
-                activeDot={{ r: 6, fill: "#06b6d4", stroke: "#fff" }}
-                name="Density %"
               />
             </LineChart>
           </ResponsiveContainer>
         ) : (
-          <p className={styles.chartPlaceholder}>Collecting data...</p>
+          <div className={styles.noData}>Waiting for data...</div>
         )}
       </div>
 
-      {/* ── Density Heatmap ───────────────────── */}
-      <div className={styles.chartCard} style={{ marginTop: 24 }}>
-        <h2 className={styles.chartTitle}>Density Heatmap (Last 5 Minutes)</h2>
-        {heatmapData.length > 0 ? (
-          <div className={styles.heatmapContainer}>
-            <div className={styles.heatmapGrid}>
-              {heatmapData.map((cell, i) => {
-                const color =
-                  RISK_COLORS[cell.riskLevel] || RISK_COLORS.Error;
-                // Adjust opacity logic for better visibility on dark bg
-                const opacity = Math.max(0.2, Math.min(cell.density / 120, 1));
-                return (
-                  <div
-                    key={i}
-                    className={styles.heatmapCell}
-                    style={{ backgroundColor: color, opacity }}
-                    title={`${cell.label}\nDensity: ${cell.density}%\nRisk: ${cell.riskLevel}`}
-                  >
-                    <span className={styles.heatmapCellValue}>
-                      {cell.density}%
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-            <div className={styles.heatmapLegend}>
-              <span className={styles.heatmapLegendItem}>
-                <span className={styles.legendDot} style={{ backgroundColor: "#10b981", boxShadow: "0 0 8px #10b981" }} /> Low
-              </span>
-              <span className={styles.heatmapLegendItem}>
-                <span className={styles.legendDot} style={{ backgroundColor: "#f59e0b", boxShadow: "0 0 8px #f59e0b" }} /> Medium
-              </span>
-              <span className={styles.heatmapLegendItem}>
-                <span className={styles.legendDot} style={{ backgroundColor: "#f97316", boxShadow: "0 0 8px #f97316" }} /> High
-              </span>
-              <span className={styles.heatmapLegendItem}>
-                <span className={styles.legendDot} style={{ backgroundColor: "#ef4444", boxShadow: "0 0 8px #ef4444" }} /> Critical
-              </span>
-            </div>
+      {/* ── Heatmap ──────────────────────── */}
+      <div className={styles.chartCard}>
+        <div className={styles.sectionTitle}>Density heatmap — last 5 minutes</div>
+        {heatBuckets.length > 0 ? (
+          <div className={styles.heatmap}>
+            {heatBuckets.map((b, i) => (
+              <div
+                key={i}
+                className={styles.heatCell}
+                title={`${b.time}: ${Math.round(b.avg * 100)}%`}
+              >
+                <div
+                  className={styles.heatFill}
+                  style={{
+                    height:     `${Math.min(b.avg * 100, 100)}%`,
+                    background:
+                      b.avg > 0.8 ? "#ef4444"
+                      : b.avg > 0.6 ? "#f97316"
+                      : b.avg > 0.4 ? "#f59e0b"
+                      : "#10b981",
+                  }}
+                />
+                <span className={styles.heatLabel}>
+                  {b.time.split(":").slice(1).join(":")}
+                </span>
+              </div>
+            ))}
           </div>
         ) : (
-          <p className={styles.chartPlaceholder}>Collecting data...</p>
+          <div className={styles.noData}>Waiting for data...</div>
         )}
       </div>
+
     </div>
   );
 }

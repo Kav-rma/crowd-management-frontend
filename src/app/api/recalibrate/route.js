@@ -1,6 +1,7 @@
-export async function GET() {
+export async function POST() {
   try {
-    const response = await fetch("http://127.0.0.1:5001/detect", {
+    const response = await fetch("http://127.0.0.1:5001/recalibrate", {
+      method: "POST",
       cache: "no-store",
     });
     if (!response.ok) throw new Error("Backend error");

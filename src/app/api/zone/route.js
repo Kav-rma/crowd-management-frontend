@@ -1,6 +1,6 @@
 export async function GET() {
   try {
-    const response = await fetch("http://127.0.0.1:5001/detect", {
+    const response = await fetch("http://127.0.0.1:5001/zone", {
       cache: "no-store",
     });
     if (!response.ok) throw new Error("Backend error");
